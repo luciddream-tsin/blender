@@ -24,13 +24,13 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "UI_interface.hh" /* For things like UI_PRECISION_FLOAT_MAX... */
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "CLG_log.h"
 
@@ -452,9 +452,7 @@ static int rna_find_sdna_member(SDNA *sdna,
 
   smember->offset = -1;
   if (structnr == -1) {
-    if (offset) {
-      *offset = -1;
-    }
+    *offset = -1;
     return 0;
   }
 
@@ -506,16 +504,14 @@ static int rna_find_sdna_member(SDNA *sdna,
       smember->pointerlevel = 0;
       smember->arraylength = 0;
 
-      if (offset) {
-        *offset = -1;
-      }
+      *offset = -1;
       membername = strstr(membername, "->") + strlen("->");
       rna_find_sdna_member(sdna, sdna->alias.types[member->type], membername, smember, offset);
 
       return 1;
     }
 
-    if (offset && *offset != -1) {
+    if (*offset != -1) {
       *offset += size;
     }
   }
@@ -1092,9 +1088,9 @@ void RNA_def_struct_sdna(StructRNA *srna, const char *structname)
 
   ds = rna_find_def_struct(srna);
 
-/* There are far too many structs which initialize without valid DNA struct names,
- * this can't be checked without adding an option to disable
- * (tested this and it means changes all over - Campbell) */
+/* NOTE(@ideasman42): There are far too many structs which initialize without valid DNA struct
+ * names, this can't be checked without adding an option to disable
+ * (tested this and it means changes all over). */
 #if 0
   if (DNA_struct_find_nr_wrapper(DefRNA.sdna, structname) == -1) {
     if (!DefRNA.silent) {

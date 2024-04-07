@@ -253,7 +253,7 @@ template<typename MatT> [[nodiscard]] MatT orthogonalize(const MatT &mat, const 
 
 /**
  * Construct a transformation that is pivoted around the given origin point. So for instance,
- * from_origin_transform<MatT>(from_rotation(M_PI_2), float2(0.0f, 2.0f))
+ * from_origin_transform<MatT>(from_rotation(numbers::pi * 0.5), float2(0.0f, 2.0f))
  * will construct a transformation representing a 90 degree rotation around the point (0, 2).
  */
 template<typename MatT, typename VectorT>
@@ -443,6 +443,14 @@ template<typename T>
  */
 template<typename T>
 [[nodiscard]] MatBase<T, 4, 4> perspective_infinite(T left, T right, T bottom, T top, T near_clip);
+
+/**
+ * \brief Translate a projection matrix after creation in the screen plane.
+ *  Usually used for anti-aliasing jittering.
+ * `offset` is the translation vector in projected space.
+ */
+template<typename T>
+[[nodiscard]] MatBase<T, 4, 4> translate(const MatBase<T, 4, 4> &mat, const VecBase<T, 2> &offset);
 
 }  // namespace projection
 
@@ -985,10 +993,10 @@ MatBase<T, NumCol, NumRow> from_rotation(const QuaternionBase<T> &rotation)
 {
   using MatT = MatBase<T, NumCol, NumRow>;
   using DoublePrecision = typename TypeTraits<T>::DoublePrecision;
-  const DoublePrecision q0 = M_SQRT2 * DoublePrecision(rotation.w);
-  const DoublePrecision q1 = M_SQRT2 * DoublePrecision(rotation.x);
-  const DoublePrecision q2 = M_SQRT2 * DoublePrecision(rotation.y);
-  const DoublePrecision q3 = M_SQRT2 * DoublePrecision(rotation.z);
+  const DoublePrecision q0 = numbers::sqrt2 * DoublePrecision(rotation.w);
+  const DoublePrecision q1 = numbers::sqrt2 * DoublePrecision(rotation.x);
+  const DoublePrecision q2 = numbers::sqrt2 * DoublePrecision(rotation.y);
+  const DoublePrecision q3 = numbers::sqrt2 * DoublePrecision(rotation.z);
 
   const DoublePrecision qda = q0 * q1;
   const DoublePrecision qdb = q0 * q2;
@@ -1401,7 +1409,7 @@ template<typename MatT, typename VectorT> [[nodiscard]] MatT from_up_axis(const 
   using T = typename MatT::base_type;
   using Vec3T = VecBase<T, 3>;
   /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1 (2017). */
-  T sign = math::sign(up.z);
+  T sign = up.z >= T(0) ? T(1) : T(-1);
   T a = T(-1) / (sign + up.z);
   T b = up.x * up.y * a;
 
@@ -1647,6 +1655,23 @@ template<typename T>
   mat[0][0] /= near_clip;
   mat[1][1] /= near_clip;
   return mat;
+}
+
+template<typename T>
+[[nodiscard]] MatBase<T, 4, 4> translate(const MatBase<T, 4, 4> &mat, const VecBase<T, 2> &offset)
+{
+  MatBase<T, 4, 4> result = mat;
+  const bool is_perspective = mat[2][3] == -1.0f;
+  const bool is_perspective_infinite = mat[2][2] == -1.0f;
+  if (is_perspective | is_perspective_infinite) {
+    result[2][0] -= mat[0][0] * offset.x / math::length(float3(mat[0][0], mat[1][0], mat[2][0]));
+    result[2][1] -= mat[1][1] * offset.y / math::length(float3(mat[0][1], mat[1][1], mat[2][1]));
+  }
+  else {
+    result[3][0] += offset.x;
+    result[3][1] += offset.y;
+  }
+  return result;
 }
 
 extern template float4x4 orthographic(
