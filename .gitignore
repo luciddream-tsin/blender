@@ -1,6 +1,8 @@
 # generic files to ignore
 .*
 
+cmake*
+
 # python temp paths
 __pycache__/
 *.py[cod]
